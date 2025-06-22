@@ -38,14 +38,8 @@ class FormMemory {
       console.log(`Form ${index}: Found ${inputs.length} input elements`);
       
       inputs.forEach(input => {
-        input.addEventListener('input', () => {
-          console.log('Input event triggered on:', input);
-          this.onInputChange();
-        });
-        input.addEventListener('change', () => {
-          console.log('Change event triggered on:', input);
-          this.onInputChange();
-        });
+        input.addEventListener('input', () => this.onInputChange());
+        input.addEventListener('change', () => this.onInputChange());
       });
 
       form.addEventListener('submit', () => this.onFormSubmit(form, index));
@@ -90,6 +84,13 @@ class FormMemory {
 
   private showSuggestUI(form?: HTMLFormElement, formIndex?: number) {
     if (this.suggestUI) {
+      return;
+    }
+
+    // Check if this is a login/authentication/signup form and skip if so
+    const targetForm = form || (formIndex !== undefined ? this.forms[formIndex] : this.forms[0]);
+    if (targetForm && this.isAuthenticationForm(targetForm)) {
+      console.log('Skipping suggest UI for authentication form');
       return;
     }
 
@@ -257,11 +258,12 @@ class FormMemory {
 
   private extractFormData(form: HTMLFormElement): FormData {
     const data: FormData = {};
+    const processedRadioGroups = new Set<string>();
     const inputs = form.querySelectorAll('input:not([type="file"]), textarea, select');
 
     inputs.forEach(input => {
       const element = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      const name = element.name || element.id || `field_${Math.random().toString(36).substr(2, 9)}`;
+      const name = element.name || element.id || `field_${Math.random().toString(36).substring(2, 11)}`;
 
       // Skip security-sensitive fields
       if (this.shouldSkipField(element, name)) {
@@ -269,14 +271,34 @@ class FormMemory {
         return;
       }
 
-      if (element.type === 'checkbox' || element.type === 'radio') {
-        data[name] = (element as HTMLInputElement).checked;
+      if (element.type === 'radio') {
+        // Handle radio buttons as groups - only save the selected value
+        if (!processedRadioGroups.has(name)) {
+          processedRadioGroups.add(name);
+          // Use more specific selector to avoid hidden fields with same name
+          const checkedRadio = form.querySelector(`input[type="radio"][name="${this.escapeSelector(name)}"]:checked`) as HTMLInputElement;
+          if (checkedRadio) {
+            data[name] = checkedRadio.value;
+          }
+        }
+      } else if (element.type === 'checkbox') {
+        // Handle checkboxes individually
+        if ((element as HTMLInputElement).checked) {
+          // For checked checkboxes, save the value or true
+          data[name] = element.value || true;
+        }
       } else if (element.value && element.value.trim() !== '') {
+        // Handle other input types
         data[name] = element.value;
       }
     });
 
     return data;
+  }
+
+  private escapeSelector(selector: string): string {
+    // Escape special characters in CSS selectors
+    return selector.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
   }
 
   private shouldSkipField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, name: string): boolean {
@@ -349,8 +371,194 @@ class FormMemory {
     return false;
   }
 
+  private isAuthenticationForm(form: HTMLFormElement): boolean {
+    // Check for password fields - strong indicator of authentication form
+    const passwordFields = form.querySelectorAll('input[type="password"]');
+    if (passwordFields.length > 0) {
+      console.log('Found password field(s), treating as authentication form');
+      return true;
+    }
+
+    // Check form attributes and classes for authentication indicators
+    const authPatterns = [
+      // Login patterns
+      /login/i,
+      /signin/i,
+      /sign-in/i,
+      
+      // Registration/signup patterns
+      /signup/i,
+      /sign-up/i,
+      /register/i,
+      /registration/i,
+      /create.*account/i,
+      /new.*account/i,
+      /join/i,
+      
+      // General auth patterns
+      /auth/i,
+      /authenticate/i,
+      /credential/i,
+      /password/i,
+      /user-login/i,
+      /account-login/i,
+      /member-login/i,
+      /user-register/i,
+      /account-register/i,
+      /member-register/i
+    ];
+
+    // Check form id, class, name, and action
+    const formIdentifiers = [
+      form.id,
+      form.className,
+      form.getAttribute('name') || '',
+      form.getAttribute('action') || ''
+    ].join(' ').toLowerCase();
+
+    const isAuthByIdentifier = authPatterns.some(pattern => pattern.test(formIdentifiers));
+    if (isAuthByIdentifier) {
+      console.log('Form identified as authentication form by identifier patterns');
+      return true;
+    }
+
+    // Check for common authentication field patterns
+    const inputs = form.querySelectorAll('input');
+    const fieldNames = Array.from(inputs).map(input => 
+      (input.name || input.id || input.placeholder || '').toLowerCase()
+    ).join(' ');
+
+    const authFieldPatterns = [
+      // Login patterns
+      /username.*password/,
+      /email.*password/,
+      /user.*pass/,
+      /login.*pass/,
+      /signin.*pass/,
+      
+      // Registration patterns
+      /email.*confirm/,
+      /password.*confirm/,
+      /confirm.*password/,
+      /repeat.*password/,
+      /first.*name.*last.*name/,
+      /firstname.*lastname/,
+      /terms.*conditions/,
+      /terms.*service/,
+      /privacy.*policy/,
+      /agree.*terms/
+    ];
+
+    const hasAuthFieldPattern = authFieldPatterns.some(pattern => pattern.test(fieldNames));
+    if (hasAuthFieldPattern) {
+      console.log('Form identified as authentication form by field patterns');
+      return true;
+    }
+
+    // Check for buttons/submits with authentication text
+    const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+    const buttonTexts = Array.from(buttons).map(button => 
+      (button.textContent || button.getAttribute('value') || '').toLowerCase()
+    ).join(' ');
+
+    const authButtonPatterns = [
+      // Login patterns
+      /login/i,
+      /sign\s*in/i,
+      /log\s*in/i,
+      /ログイン/,
+      /サインイン/,
+      
+      // Registration patterns
+      /sign\s*up/i,
+      /register/i,
+      /create.*account/i,
+      /join.*now/i,
+      /get.*started/i,
+      /会員登録/,
+      /登録/,
+      /アカウント作成/,
+      /新規登録/
+    ];
+
+    const hasAuthButton = authButtonPatterns.some(pattern => pattern.test(buttonTexts));
+    if (hasAuthButton) {
+      console.log('Form identified as authentication form by button text');
+      return true;
+    }
+
+    // Check surrounding text for authentication context
+    const formContainer = form.closest('div, section, main, article') || form;
+    const contextText = (formContainer.textContent || '').toLowerCase();
+    
+    const contextPatterns = [
+      // Login patterns
+      /sign\s+in/i,
+      /log\s+in/i,
+      /ログイン/,
+      
+      // Registration patterns
+      /sign\s+up/i,
+      /register/i,
+      /create.*account/i,
+      /new.*account/i,
+      /join.*us/i,
+      /get.*started/i,
+      /会員登録/,
+      /新規登録/,
+      /アカウント作成/,
+      
+      // Common patterns
+      /パスワード/,
+      /terms.*conditions/i,
+      /privacy.*policy/i
+    ];
+
+    const hasAuthContext = contextPatterns.some(pattern => pattern.test(contextText));
+    if (hasAuthContext && inputs.length <= 8) { // Allow more fields for registration
+      console.log('Form identified as authentication form by context');
+      return true;
+    }
+
+    // Check for multiple password fields (registration forms often have password confirmation)
+    if (passwordFields.length >= 2) {
+      console.log('Multiple password fields found, likely registration form');
+      return true;
+    }
+
+    // Check for email verification patterns in registration forms
+    const emailFields = form.querySelectorAll('input[type="email"]');
+    if (emailFields.length > 0 && inputs.length >= 3) {
+      const hasRegistrationIndicators = [
+        /confirm/i,
+        /verify/i,
+        /agree/i,
+        /terms/i,
+        /newsletter/i,
+        /firstname/i,
+        /lastname/i,
+        /full.*name/i
+      ].some(pattern => pattern.test(fieldNames));
+      
+      if (hasRegistrationIndicators) {
+        console.log('Email field with registration indicators found');
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   private async loadSavedData() {
     for (let i = 0; i < this.forms.length; i++) {
+      const form = this.forms[i];
+      
+      // Skip authentication forms for data restoration too
+      if (this.isAuthenticationForm(form)) {
+        console.log(`Skipping data restoration for authentication form ${i}`);
+        continue;
+      }
+      
       const key = this.generateStorageKey(i);
       
       try {
@@ -378,7 +586,7 @@ class FormMemory {
             });
           }
           
-          this.restoreFormData(this.forms[i], cleanedData);
+          this.restoreFormData(form, cleanedData);
           console.log(`Form ${i} data restored from key: ${key}`);
         }
       } catch (error) {
@@ -412,6 +620,7 @@ class FormMemory {
 
   private restoreFormData(form: HTMLFormElement, data: { [fieldName: string]: string | boolean }) {
     const inputs = form.querySelectorAll('input:not([type="file"]), textarea, select');
+    const processedRadioGroups = new Set<string>();
 
     inputs.forEach(input => {
       const element = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -421,10 +630,44 @@ class FormMemory {
       if (name && data.hasOwnProperty(name) && !this.shouldSkipField(element, name)) {
         const value = data[name];
         
-        if (element.type === 'checkbox' || element.type === 'radio') {
-          (element as HTMLInputElement).checked = Boolean(value);
+        if (element.type === 'radio') {
+          // Handle radio buttons as groups to avoid setting multiple radios
+          if (!processedRadioGroups.has(name)) {
+            processedRadioGroups.add(name);
+            
+            // First, uncheck all radio buttons in this group
+            const allRadios = form.querySelectorAll(`input[type="radio"][name="${this.escapeSelector(name)}"]`);
+            allRadios.forEach(radio => {
+              (radio as HTMLInputElement).checked = false;
+            });
+            
+            // Then check the radio button with matching value
+            if (typeof value === 'string') {
+              const targetRadio = form.querySelector(`input[type="radio"][name="${this.escapeSelector(name)}"][value="${this.escapeSelector(value)}"]`) as HTMLInputElement;
+              if (targetRadio) {
+                targetRadio.checked = true;
+                // Trigger change event to notify other scripts
+                targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            }
+          }
+        } else if (element.type === 'checkbox') {
+          // For checkboxes, handle both boolean and value-based storage
+          const inputElement = element as HTMLInputElement;
+          if (typeof value === 'boolean') {
+            inputElement.checked = value;
+          } else if (typeof value === 'string') {
+            // If we stored the checkbox value, check if it matches
+            inputElement.checked = (inputElement.value === value) || (value === 'true');
+          }
+          
+          // Trigger change event
+          inputElement.dispatchEvent(new Event('change', { bubbles: true }));
         } else if (typeof value === 'string') {
+          // Handle other input types
           element.value = value;
+          // Trigger input event
+          element.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }
     });

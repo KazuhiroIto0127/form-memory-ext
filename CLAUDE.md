@@ -38,6 +38,12 @@ The extension follows a standard Chrome Extension architecture:
 
 ### Security Considerations
 - Exclude `input[type="file"]` (browser security restriction)
+- Automatically exclude login/authentication/registration forms:
+  - Forms containing password fields (single or multiple for confirmation)
+  - Forms with auth-related identifiers: login, signin, signup, register, etc.
+  - Forms with auth button text: "Login", "Sign In", "Sign Up", "Register", etc.
+  - Forms with registration field patterns: confirm password, terms/conditions, etc.
+  - Forms in auth context (surrounding text contains auth keywords)
 - Automatically exclude security-sensitive fields:
   - CSRF tokens (`csrf_token`, `authenticity_token`, etc.)
   - Password fields (`type="password"`)
