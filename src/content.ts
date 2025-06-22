@@ -13,6 +13,7 @@ class FormMemory {
   private hasUnsavedChanges = false;
   private debounceTimer: number | null = null;
   private suggestUI: HTMLElement | null = null;
+  private hideTimer: number | null = null;
 
   constructor() {
     this.init();
@@ -64,26 +65,54 @@ class FormMemory {
     console.log('FormMemory: Input changed, setting unsaved flag');
     this.hasUnsavedChanges = true;
     
+    // Don't show UI if it's already visible
+    if (this.suggestUI) {
+      console.log('Suggest UI already visible, ignoring input change');
+      return;
+    }
+    
+    // Clear existing timer
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
     }
 
     this.debounceTimer = window.setTimeout(() => {
-      console.log('FormMemory: Debounce timer triggered, hasUnsavedChanges:', this.hasUnsavedChanges);
-      if (this.hasUnsavedChanges) {
+      console.log('FormMemory: Debounce timer triggered, hasUnsavedChanges:', this.hasUnsavedChanges, 'suggestUI exists:', !!this.suggestUI);
+      
+      // Clear the timer reference first
+      this.debounceTimer = null;
+      
+      // Double-check conditions before showing UI
+      if (this.hasUnsavedChanges && !this.suggestUI) {
         this.showSuggestUI();
+      } else {
+        console.log('Conditions not met for showing suggest UI');
       }
     }, 2000);
   }
 
   private onFormSubmit(form: HTMLFormElement, formIndex: number) {
-    if (this.hasUnsavedChanges) {
+    console.log('Form submit triggered, hasUnsavedChanges:', this.hasUnsavedChanges, 'suggestUI exists:', !!this.suggestUI);
+    
+    if (this.hasUnsavedChanges && !this.suggestUI) {
+      // Clear any pending debounce timer since we're showing UI immediately
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+        console.log('Cleared debounce timer due to form submit');
+      }
+      
       this.showSuggestUI(form, formIndex);
     }
   }
 
   private showSuggestUI(form?: HTMLFormElement, formIndex?: number) {
-    if (this.suggestUI) {
+    console.log('showSuggestUI called with formIndex:', formIndex, 'suggestUI exists:', !!this.suggestUI);
+    
+    // Prevent multiple UI instances - check both instance and DOM
+    if (this.suggestUI || document.getElementById('form-memory-suggest')) {
+      console.log('Suggest UI already exists, ignoring call');
       return;
     }
 
@@ -94,7 +123,7 @@ class FormMemory {
       return;
     }
 
-    console.log('Showing suggest UI for form:', formIndex);
+    console.log('Creating suggest UI for form:', formIndex);
     
     this.suggestUI = document.createElement('div');
     this.suggestUI.id = 'form-memory-suggest';
@@ -170,7 +199,7 @@ class FormMemory {
       </div>
     `;
 
-    // Add animation keyframes
+    // Add animation keyframes and button styles
     if (!document.getElementById('form-memory-styles')) {
       const style = document.createElement('style');
       style.id = 'form-memory-styles';
@@ -185,43 +214,149 @@ class FormMemory {
             opacity: 1;
           }
         }
+        
+        #form-memory-save:disabled {
+          background: #6c757d !important;
+          cursor: not-allowed !important;
+          opacity: 0.7 !important;
+        }
+        
+        #form-memory-save:disabled:hover {
+          background: #6c757d !important;
+          transform: none !important;
+        }
       `;
       document.head.appendChild(style);
     }
 
     document.body.appendChild(this.suggestUI);
 
+    // Get button references immediately after DOM insertion
     const saveBtn = this.suggestUI.querySelector('#form-memory-save') as HTMLButtonElement;
     const dismissBtn = this.suggestUI.querySelector('#form-memory-dismiss') as HTMLButtonElement;
     const closeBtn = this.suggestUI.querySelector('#form-memory-close') as HTMLButtonElement;
 
-    saveBtn.addEventListener('click', () => {
-      this.saveFormData(form, formIndex);
-      this.hideSuggestUI();
-    });
+    // Set up save button with proper error handling
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Save button clicked');
+        
+        // Prevent multiple clicks
+        if (saveBtn.disabled) {
+          console.log('Button already disabled, ignoring click');
+          return;
+        }
+        
+        // Disable button immediately
+        saveBtn.disabled = true;
+        saveBtn.textContent = '保存中...';
+        console.log('Button disabled, starting save process');
+        
+        try {
+          await this.saveFormData(form, formIndex);
+          console.log('Save completed successfully');
+          
+          // Show success state
+          saveBtn.textContent = '保存完了';
+          saveBtn.style.background = '#28a745';
+          console.log('Showing success state for 1 second');
+          
+          // Hide UI after 1 second
+          this.scheduleAutoHide(1000, 'success completion');
+          
+        } catch (error) {
+          console.error('Save failed:', error);
+          // Reset button on error
+          saveBtn.disabled = false;
+          saveBtn.textContent = '保存エラー';
+          saveBtn.style.background = '#dc3545';
+          
+          // Reset to normal after 2 seconds
+          setTimeout(() => {
+            if (saveBtn) {
+              saveBtn.textContent = '保存する';
+              saveBtn.style.background = '#007bff';
+            }
+          }, 2000);
+          
+          return; // Important: don't continue processing
+        }
+      });
+    } else {
+      console.error('Save button not found!');
+    }
 
-    dismissBtn.addEventListener('click', () => {
-      this.hideSuggestUI();
-    });
+    // Set up dismiss button
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Dismiss button clicked');
+        this.hideSuggestUI();
+      });
+    }
 
-    closeBtn.addEventListener('click', () => {
-      this.hideSuggestUI();
-    });
+    // Set up close button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Close button clicked');
+        this.hideSuggestUI();
+      });
+    }
 
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
+    // Auto-hide after 10 seconds (only if not already hiding)
+    this.scheduleAutoHide(10000, 'auto-hide after 10 seconds');
+  }
+
+  private scheduleAutoHide(delay: number, reason: string) {
+    console.log(`Scheduling auto-hide in ${delay}ms for: ${reason}`);
+    
+    // Clear any existing hide timer
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+      console.log('Cleared existing hide timer');
+    }
+    
+    this.hideTimer = window.setTimeout(() => {
+      console.log(`Auto-hiding suggest UI: ${reason}`);
+      
+      // Clear timer reference before calling hideSuggestUI
+      this.hideTimer = null;
+      
+      // Only hide if UI still exists
       if (this.suggestUI) {
         this.hideSuggestUI();
+      } else {
+        console.log('Suggest UI already removed, skipping hide');
       }
-    }, 10000);
+    }, delay);
   }
 
   private hideSuggestUI() {
+    console.log('hideSuggestUI called, suggestUI exists:', !!this.suggestUI);
+    
+    // Clear any pending hide timers FIRST
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+      console.log('Cleared pending hide timer');
+    }
+    
+    // Only proceed if UI actually exists
     if (this.suggestUI) {
       this.suggestUI.remove();
       this.suggestUI = null;
+      console.log('Suggest UI removed successfully');
+      this.hasUnsavedChanges = false;
+    } else {
+      console.log('Suggest UI already null, nothing to remove');
     }
-    this.hasUnsavedChanges = false;
   }
 
   private async saveFormData(targetForm?: HTMLFormElement, targetFormIndex?: number) {
@@ -244,6 +379,11 @@ class FormMemory {
       };
 
       try {
+        // Check if extension context is still valid
+        if (!chrome.runtime?.id) {
+          throw new Error('Extension context invalidated');
+        }
+        
         await chrome.runtime.sendMessage({
           action: 'saveFormData',
           key,
@@ -252,6 +392,7 @@ class FormMemory {
         console.log(`Form ${formIndex} data saved with key: ${key}`);
       } catch (error) {
         console.error('Failed to save form data:', error);
+        throw error; // Re-throw to be caught by caller
       }
     }
   }
@@ -681,9 +822,18 @@ class FormMemory {
 
 console.log('FormMemory content script loaded');
 
+let formMemoryInstance: FormMemory | null = null;
+
 function initFormMemory() {
   console.log('Document ready state:', document.readyState);
-  new FormMemory();
+  
+  // Prevent multiple instances
+  if (formMemoryInstance) {
+    console.log('FormMemory already initialized, skipping');
+    return;
+  }
+  
+  formMemoryInstance = new FormMemory();
 }
 
 if (document.readyState === 'loading') {
@@ -693,13 +843,3 @@ if (document.readyState === 'loading') {
   console.log('Document already loaded, initializing immediately');
   initFormMemory();
 }
-
-// Also try after a short delay to catch dynamic forms
-setTimeout(() => {
-  console.log('FormMemory: Checking for forms after delay...');
-  const forms = document.querySelectorAll('form');
-  if (forms.length > 0 && !document.getElementById('form-memory-suggest')) {
-    console.log('FormMemory: Found forms after delay, re-initializing...');
-    initFormMemory();
-  }
-}, 1000);
