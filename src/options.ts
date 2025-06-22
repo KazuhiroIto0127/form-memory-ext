@@ -141,10 +141,10 @@ class OptionsPage {
             ${moreFieldsHtml}
           </div>
           <div class="form-actions">
-            <button class="btn btn-sm btn-secondary" onclick="optionsPage.viewForm('${key}')">
+            <button class="btn btn-sm btn-secondary view-form-btn" data-key="${key}">
               詳細を見る
             </button>
-            <button class="btn btn-sm btn-danger" onclick="optionsPage.deleteForm('${key}')">
+            <button class="btn btn-sm btn-danger delete-form-btn" data-key="${key}">
               削除
             </button>
           </div>
@@ -153,6 +153,31 @@ class OptionsPage {
     }).join('');
 
     formsListEl.innerHTML = formsHtml;
+    this.setupFormItemEventListeners();
+  }
+
+  private setupFormItemEventListeners() {
+    // View form buttons
+    const viewButtons = document.querySelectorAll('.view-form-btn');
+    viewButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const key = (e.target as HTMLElement).getAttribute('data-key');
+        if (key) {
+          this.viewForm(key);
+        }
+      });
+    });
+
+    // Delete form buttons
+    const deleteButtons = document.querySelectorAll('.delete-form-btn');
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const key = (e.target as HTMLElement).getAttribute('data-key');
+        if (key) {
+          this.deleteForm(key);
+        }
+      });
+    });
   }
 
   private formatValue(value: string | boolean): string {
@@ -221,7 +246,7 @@ class OptionsPage {
             </div>
           </div>
           <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="optionsPage.closeViewModal()">
+            <button class="btn btn-secondary close-modal-btn">
               閉じる
             </button>
           </div>
@@ -230,6 +255,20 @@ class OptionsPage {
     `;
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Add event listener for close button
+    const closeBtn = document.querySelector('#view-form-modal .close-modal-btn');
+    closeBtn?.addEventListener('click', () => {
+      this.closeViewModal();
+    });
+    
+    // Close modal when clicking outside
+    const modal = document.getElementById('view-form-modal');
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.closeViewModal();
+      }
+    });
   }
 
   public closeViewModal() {
@@ -293,6 +332,5 @@ class OptionsPage {
   }
 }
 
-// Global instance for onclick handlers
-const optionsPage = new OptionsPage();
-(window as any).optionsPage = optionsPage;
+// Initialize the options page
+new OptionsPage();

@@ -38,9 +38,16 @@ The extension follows a standard Chrome Extension architecture:
 
 ### Security Considerations
 - Exclude `input[type="file"]` (browser security restriction)
+- Automatically exclude security-sensitive fields:
+  - CSRF tokens (`csrf_token`, `authenticity_token`, etc.)
+  - Password fields (`type="password"`)
+  - Session tokens and nonces
+  - API keys and secrets
+  - One-time codes (OTP, verification codes)
+  - Hidden fields with token-like values
 - Validate URL schemas to prevent HTTPS→HTTP data injection
-- Password fields disabled by default (optional enable in settings)
 - Local-only storage, no external server communication
+- Automatic cleanup of existing stored security fields
 
 ## Development Commands
 
