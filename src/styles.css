@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for options page */
+.container {
+  @apply max-w-4xl mx-auto p-6 min-h-screen bg-gray-50;
+}
+
+.header {
+  @apply mb-8 text-center;
+}
+
+.header h1 {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.subtitle {
+  @apply text-gray-600;
+}
+
+.stats-section {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4 mb-8;
+}
+
+.stat-card {
+  @apply bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center;
+}
+
+.stat-number {
+  @apply block text-3xl font-bold text-blue-600 mb-1;
+}
+
+.stat-label {
+  @apply text-gray-600 text-sm;
+}
+
+.actions-section {
+  @apply flex flex-wrap gap-4 mb-8 justify-center;
+}
+
+.btn {
+  @apply px-4 py-2 rounded font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+}
+
+.forms-section h2 {
+  @apply text-xl font-semibold text-gray-900 mb-4;
+}
+
+.search-box {
+  @apply mb-6;
+}
+
+.search-box input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.forms-list {
+  @apply space-y-4;
+}
+
+.form-item {
+  @apply bg-white rounded-lg p-4 shadow-sm border border-gray-200;
+}
+
+.form-header {
+  @apply flex justify-between items-start mb-3;
+}
+
+.form-url {
+  @apply font-medium text-gray-900 break-all;
+}
+
+.form-timestamp {
+  @apply text-sm text-gray-500 whitespace-nowrap ml-4;
+}
+
+.form-fields {
+  @apply space-y-2 mb-3;
+}
+
+.field-item {
+  @apply flex justify-between items-center py-1;
+}
+
+.field-name {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.field-value {
+  @apply text-sm text-gray-600 break-all max-w-xs overflow-hidden text-ellipsis;
+}
+
+.form-actions {
+  @apply flex gap-2;
+}
+
+.btn-sm {
+  @apply px-3 py-1 text-sm;
+}
+
+.loading {
+  @apply text-center py-8 text-gray-500;
+}
+
+.empty-state {
+  @apply text-center py-12;
+}
+
+.empty-state-icon {
+  @apply text-6xl text-gray-300 mb-4;
+}
+
+.empty-state-title {
+  @apply text-xl font-medium text-gray-900 mb-2;
+}
+
+.empty-state-description {
+  @apply text-gray-600;
+}
+
+/* Modal styles */
+.modal-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+.modal {
+  @apply bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl;
+}
+
+.modal h3 {
+  @apply text-lg font-semibold text-gray-900 mb-3;
+}
+
+.modal p {
+  @apply text-gray-600 mb-6;
+}
+
+.modal-actions {
+  @apply flex gap-3 justify-end;
+}

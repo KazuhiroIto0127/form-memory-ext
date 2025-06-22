@@ -44,8 +44,6 @@ The extension follows a standard Chrome Extension architecture:
 
 ## Development Commands
 
-Since this is a new project, these commands will be available once development begins:
-
 ```bash
 # Install dependencies
 npm install
@@ -56,11 +54,25 @@ npm run dev
 # Production build
 npm run build
 
+# Clean build directory
+npm run clean
+
 # Load extension in Chrome
 # 1. Open chrome://extensions
-# 2. Enable Developer mode
+# 2. Enable Developer mode  
 # 3. Click "Load unpacked" and select dist/ folder
 ```
+
+## Build Output
+
+The build process generates the following files in `dist/`:
+- `manifest.json` - Extension manifest
+- `background.js` - Background service worker
+- `content.js` - Content script for form detection
+- `suggest-ui.js` - Lit-based suggestion UI component
+- `options.html` - Options page HTML
+- `options.js` - Options page JavaScript
+- `styles.css` - Tailwind CSS styles
 
 ## Chrome Extension Permissions
 
